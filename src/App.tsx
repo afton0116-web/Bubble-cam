@@ -231,12 +231,25 @@ export default function App() {
   const dragTargetRef = useRef<Bubble | null>(null);
 
   // --- Camera Logic ---
+  const stopStream = (stream: MediaStream | null) => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+  };
+
   const startCamera = async (mode: 'user' | 'environment') => {
     try {
+      // Stop existing streams to avoid conflicts on mobile
+      stopStream(userStream);
+      stopStream(envStream);
+      setUserStream(null);
+      setEnvStream(null);
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false
       });
+      
       if (mode === 'user') {
         setUserStream(stream);
       } else {
@@ -244,31 +257,21 @@ export default function App() {
       }
       return stream;
     } catch (err) {
-      console.warn(`Could not access ${mode} camera (this is common on mobile if another camera is active):`, err);
+      console.warn(`Could not access ${mode} camera:`, err);
       return null;
     }
   };
 
   const handleStart = async () => {
     setIsStarted(true);
-    // Try to start environment camera first (usually default)
-    const env = await startCamera('environment');
-    // Then try user camera (might fail on mobile, which is fine)
-    await startCamera('user');
-    
-    // If both failed, try a generic one
-    if (!env && !userStream && !envStream) {
-      try {
-        const fallback = await navigator.mediaDevices.getUserMedia({ video: true });
-        setEnvStream(fallback);
-      } catch (e) {
-        console.error("All camera attempts failed", e);
-      }
-    }
+    // On mobile, only start one camera at a time to avoid conflicts
+    await startCamera('environment');
   };
 
-  const toggleGlobalCamera = () => {
-    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  const toggleGlobalCamera = async () => {
+    const nextMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(nextMode);
+    await startCamera(nextMode);
   };
 
   // Sync streams to video elements
@@ -359,10 +362,15 @@ export default function App() {
   };
 
   // --- Action Handlers ---
-  const handleBubbleSwitch = () => {
+  const handleBubbleSwitch = async () => {
     const bubble = bubblesRef.current.find(b => b.id === selectedBubbleId);
     if (bubble && !bubble.isCaptured) {
-      bubble.facingMode = bubble.facingMode === 'user' ? 'environment' : 'user';
+      const nextMode = bubble.facingMode === 'user' ? 'environment' : 'user';
+      bubble.facingMode = nextMode;
+      // If the bubble's mode is different from global, we might need to switch global too or just handle it
+      // For simplicity, let's keep global synced if it's the selected bubble
+      setFacingMode(nextMode);
+      await startCamera(nextMode);
     }
   };
 
@@ -370,7 +378,7 @@ export default function App() {
     const bubble = bubblesRef.current.find(b => b.id === selectedBubbleId);
     if (bubble && !bubble.isCaptured) {
       const video = bubble.facingMode === 'user' ? userVideoRef.current : envVideoRef.current;
-      if (!video) return;
+      if (!video || video.readyState < 2) return;
 
       // Visual feedback
       setShowFlash(true);
@@ -398,10 +406,10 @@ export default function App() {
       tCtx.drawImage(video, (size - drawWidth) / 2, (size - drawHeight) / 2, drawWidth, drawHeight);
 
       const img = new Image();
+      bubble.isCaptured = true; // Set immediately to show flash/loading state
       img.src = tempCanvas.toDataURL('image/png');
       img.onload = () => {
         bubble.capturedImage = img;
-        bubble.isCaptured = true;
       };
     }
   };
@@ -573,12 +581,12 @@ export default function App() {
       <video 
         ref={userVideoRef} 
         autoPlay playsInline muted 
-        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1 }} 
+        style={{ position: 'absolute', opacity: 0.01, pointerEvents: 'none', width: '10px', height: '10px', top: 0, left: 0 }} 
       />
       <video 
         ref={envVideoRef} 
         autoPlay playsInline muted 
-        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1 }} 
+        style={{ position: 'absolute', opacity: 0.01, pointerEvents: 'none', width: '10px', height: '10px', top: 0, left: 0 }} 
       />
 
       {/* Bubble Canvas */}
@@ -652,11 +660,9 @@ export default function App() {
                 
                 <div className="relative -top-4">
                   <button 
-                    onMouseDown={handlePressStart}
-                    onMouseUp={handlePressEnd}
-                    onTouchStart={handlePressStart}
-                    onTouchEnd={handlePressEnd}
-                    className="glass-morphism rainbow-border w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center text-sm md:text-lg ui-label shadow-xl hover:scale-105 transition-transform active:scale-95 select-none"
+                    onPointerDown={handlePressStart}
+                    onPointerUp={handlePressEnd}
+                    className="glass-morphism rainbow-border w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center text-sm md:text-lg ui-label shadow-xl hover:scale-105 transition-transform active:scale-95 select-none touch-none"
                   >
                     吹泡泡
                   </button>
