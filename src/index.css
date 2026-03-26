@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-gradient: linear-gradient(135deg, #FFD1FF 0%, #D1D1FF 50%, #E0FFFF 80%);
+    --glass-bg: rgba(255, 255, 255, 0.2);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --text-primary: #5A5A7A; /* Slightly deeper for better contrast */
+  }
+
+  body {
+    @apply m-0 p-0 overflow-hidden antialiased;
+    background: var(--bg-gradient);
+    min-height: 100vh;
+    font-family: 'Inter', sans-serif;
+    color: var(--text-primary);
+  }
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400;500;600&display=swap');
+
+.font-serif-slender {
+  font-family: 'Cormorant Garamond', serif;
+  letter-spacing: 0.05em;
+}
+
+.ui-label {
+  font-family: 'Inter', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-weight: 500;
+}
+
+.glass-morphism {
+  background: var(--glass-bg);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 0.5px solid var(--glass-border);
+}
+
+.rainbow-border {
+  position: relative;
+  z-index: 0;
+  background: transparent !important;
+  border: none !important;
+}
+
+.rainbow-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 3px; /* Border thickness */
+  background: linear-gradient(45deg, 
+    #b388eb, #8093f1, #72efdd, #95f9c3, #f7d08a, #f391a9, #b388eb
+  );
+  background-size: 400% 400%;
+  -webkit-mask: 
+     linear-gradient(#fff 0 0) content-box, 
+     linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  border-radius: inherit;
+  animation: rainbow-border-anim 8s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes rainbow-border-anim {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

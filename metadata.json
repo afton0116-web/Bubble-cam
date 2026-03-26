@@ -1,0 +1,5 @@
+{
+  "name": "Dreamy Bubble Cam",
+  "description": "A dreamy camera app that breathes life into bubbles with a beautiful glassmorphism UI.",
+  "requestFramePermissions": ["camera"]
+}
